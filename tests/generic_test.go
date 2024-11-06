@@ -6,7 +6,7 @@ import (
 )
 
 func TestHealth(t *testing.T) {
-	resp, err := http.Get(BACKEND_URL + "/health")
+	resp, err := http.Get(BACKEND_URL + "/api/health")
 	if err != nil {
 		t.Fatal("Failed to make GET request:", err)
 	}
