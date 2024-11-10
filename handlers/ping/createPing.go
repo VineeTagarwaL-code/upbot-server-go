@@ -3,10 +3,13 @@ package ping
 import (
 	"fmt"
 	"net/http"
+	"time"
 	"upbot-server-go/database"
+	"upbot-server-go/libraries"
 	"upbot-server-go/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/go-redis/redis/v8"
 )
 
 type PingRequest struct {
@@ -74,11 +77,10 @@ func CreatePingHandler(c *gin.Context) {
 		return
 	}
 
-	//TODO: uncomment this thing
-	// redisClient := libraries.GetInstance()
-	// taskMember := fmt.Sprintf("%d|%s", newTask.ID, newTask.URL)
-	// redisClient.ZAdd(c, "ping_queue", &redis.Z{Score: float64(time.Now().Add(10 * time.Second).Unix()),
-	// 	Member: taskMember})
+	redisClient := libraries.GetInstance()
+	taskMember := fmt.Sprintf("%d|%s", newTask.ID, newTask.URL)
+	redisClient.ZAdd(c, "ping_queue", &redis.Z{Score: float64(time.Now().Add(10 * time.Second).Unix()),
+		Member: taskMember})
 	c.JSON(http.StatusCreated, gin.H{
 		"message": "Task created successfully",
 		"url":     pingReq.Url,
