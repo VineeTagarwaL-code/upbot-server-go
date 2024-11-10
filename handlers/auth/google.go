@@ -2,7 +2,6 @@ package auth
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"os"
@@ -67,8 +66,6 @@ func Google(c *gin.Context) {
 		c.Abort()
 		return
 	}
-
-	fmt.Println("User Email:", userInfo.Email)
 
 	var user models.User
 	if err := database.DB.First(&user, "email = ?", userInfo.Email).Error; err != nil {

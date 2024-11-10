@@ -54,7 +54,6 @@ func CreatePingHandler(c *gin.Context) {
 			return
 		}
 	}
-	fmt.Println(pingReq)
 	var webHook *string
 	notifyDiscord := false
 	if pingReq.WebHook != "" {

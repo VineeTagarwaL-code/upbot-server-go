@@ -1,7 +1,7 @@
 package libraries
 
 import (
-	"fmt"
+	"log"
 	"os"
 	"sync"
 
@@ -16,7 +16,7 @@ var (
 func getClient() *resend.Client {
 	clientOnce.Do(func() {
 		RESEND_API_KEY := os.Getenv("RESEND_API_KEY")
-		fmt.Println("Initializing Resend client")
+		log.Println("Initializing Resend client")
 		client = resend.NewClient(RESEND_API_KEY)
 	})
 	return client

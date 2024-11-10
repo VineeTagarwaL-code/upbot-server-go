@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +17,6 @@ func ValidateBody(objFactory func() interface{}) gin.HandlerFunc {
 
 		// Bind JSON to the newly created object
 		if err := c.BindJSON(obj); err != nil {
-			fmt.Print(err)
 			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request format"})
 			c.Abort()
 			return

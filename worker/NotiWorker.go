@@ -1,9 +1,12 @@
 package worker
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 	"upbot-server-go/database"
 	"upbot-server-go/libraries"
@@ -49,7 +52,96 @@ func handleTask(task string) {
 		return
 	}
 
-	sendFailureNotificationEmail(user.Email, dbTask.URL)
+	// we will only send notification to one service that the user has opted for
+	if dbTask.NotifyDiscord {
+		sendToDiscordWebhook(dbTask.WebHook, dbTask.URL)
+	} else {
+		sendFailureNotificationEmail(user.Email, dbTask.URL)
+	}
+}
+
+type DiscordEmbed struct {
+	Title       string       `json:"title"`
+	Description string       `json:"description"`
+	Color       int          `json:"color"`
+	Fields      []EmbedField `json:"fields,omitempty"`
+	Footer      EmbedFooter  `json:"footer,omitempty"`
+}
+
+type EmbedField struct {
+	Name   string `json:"name"`
+	Value  string `json:"value"`
+	Inline bool   `json:"inline"`
+}
+
+type EmbedFooter struct {
+	Text string `json:"text"`
+	Icon string `json:"icon_url"`
+}
+
+type DiscordWebhookPayload struct {
+	Embeds []DiscordEmbed `json:"embeds"`
+}
+
+func sendToDiscordWebhook(webhook *string, url string) error {
+	if webhook == nil || *webhook == "" {
+		return fmt.Errorf("no Discord webhook URL provided")
+	}
+
+	// Create the embed message
+	embed := DiscordEmbed{
+		Title:       "🚨 Server Ping Failure Alert 🚨",
+		Description: fmt.Sprintf("We have detected multiple ping failures for the server at %s.", url),
+		Color:       16711680,
+		Fields: []EmbedField{
+			{
+				Name:   "Server URL",
+				Value:  fmt.Sprintf("[Visit Server](%s)", url),
+				Inline: false,
+			},
+			{
+				Name:   "Status",
+				Value:  "❌ Failed to respond",
+				Inline: true,
+			},
+			{
+				Name:   "Failure Count",
+				Value:  "2 consecutive failures",
+				Inline: true,
+			},
+		},
+		Footer: EmbedFooter{
+			Text: "Please take immediate action to resolve this issue.",
+			Icon: "https://yourdomain.com/path/to/icon.png",
+		},
+	}
+
+	payload := DiscordWebhookPayload{
+		Embeds: []DiscordEmbed{embed},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	if err != nil {
+		return fmt.Errorf("failed to marshal payload: %v", err)
+	}
+
+	req, err := http.NewRequest("POST", *webhook+"?wait=true", bytes.NewBuffer(payloadBytes))
+	if err != nil {
+		return fmt.Errorf("failed to create request: %v", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send request: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK && resp.StatusCode != http.StatusNoContent {
+		return fmt.Errorf("discord webhook returned non-OK status: %s", resp.Status)
+	}
+	return nil
 }
 
 func sendFailureNotificationEmail(userEmail string, url string) error {
@@ -107,6 +199,5 @@ func sendFailureNotificationEmail(userEmail string, url string) error {
 		return err
 	}
 
-	log.Printf("Failure notification email sent to %s regarding task %s", userEmail, url)
 	return nil
 }
