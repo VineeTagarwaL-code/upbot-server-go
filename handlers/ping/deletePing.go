@@ -9,11 +9,11 @@ import (
 )
 
 type DeletePingRequest struct {
-	Url string `json:"url" binding:"required,url"` // URL must be a valid URL
+	TaskId uint `json:"taskId" binding:"required"`
 }
 
 func DeletePingHandler(c *gin.Context) {
-	var delPingReq PingRequest
+	var delPingReq DeletePingRequest
 
 	email, emailExists := c.Get("email")
 
@@ -41,8 +41,7 @@ func DeletePingHandler(c *gin.Context) {
 	}
 
 	for _, task := range user.Tasks {
-		if task.URL == delPingReq.Url {
-			// delete task
+		if task.ID == delPingReq.TaskId {
 			if err := database.DB.Delete(&task).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error":   "Failed to delete task",
@@ -51,7 +50,6 @@ func DeletePingHandler(c *gin.Context) {
 				return
 			}
 
-			// delete logs
 			if err := database.DB.Where("task_id = ?", task.ID).Delete(&models.Log{}).Error; err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error":   "Failed to delete logs",
@@ -59,7 +57,6 @@ func DeletePingHandler(c *gin.Context) {
 				})
 				return
 			}
-			// delete user relation
 			if err := database.DB.Model(&user).Association("Tasks").Delete(&task); err != nil {
 				c.JSON(http.StatusInternalServerError, gin.H{
 					"error":   "Failed to delete user relation",
@@ -70,7 +67,7 @@ func DeletePingHandler(c *gin.Context) {
 
 			c.JSON(http.StatusOK, gin.H{
 				"message": "Task deleted successfully",
-				"url":     delPingReq.Url,
+				"taskId":  delPingReq.TaskId,
 			})
 			return
 		}

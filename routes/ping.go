@@ -15,4 +15,5 @@ func pingRouter(r *gin.RouterGroup) {
 	r.POST("/create", middleware.TokenValidator, ping.CreatePingHandler)
 	r.DELETE("/delete", middleware.TokenValidator, ping.DeletePingHandler)
 	r.GET("/getall", middleware.TokenValidator, ping.GetPingsHandler)
+	r.PATCH("/reactivate", middleware.TokenValidator, ping.ReactivatePingHandler)
 }

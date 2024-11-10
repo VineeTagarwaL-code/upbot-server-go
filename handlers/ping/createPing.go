@@ -45,6 +45,13 @@ func CreatePingHandler(c *gin.Context) {
 		return
 	}
 
+	if len(user.Tasks) >= 5 {
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Task limit reached",
+			"details": "You can only have 5 active tasks at a time",
+		})
+		return
+	}
 	for _, task := range user.Tasks {
 		if task.URL == pingReq.Url {
 			c.JSON(http.StatusBadRequest, gin.H{

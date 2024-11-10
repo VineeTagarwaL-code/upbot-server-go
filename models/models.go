@@ -28,6 +28,7 @@ type Log struct {
 	TimeTake    int64     `json:"timeTake"`
 	LogResponse string    `json:"logResponse"`
 	IsSuccess   bool      `json:"isSuccess"`
+	RespCode    int       `json:"respCode"`
 }
 
 //https://discord.com/api/webhooks/1303669490864750655/bgreX0O3b2lfF9lt2-01vIXu9K9AEgTyeZ_bE3i4fl8FDMtMdI5tqJ79W-MB37WWG_5r

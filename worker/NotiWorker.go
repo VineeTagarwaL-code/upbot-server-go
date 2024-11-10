@@ -52,7 +52,6 @@ func handleTask(task string) {
 		return
 	}
 
-	// we will only send notification to one service that the user has opted for
 	if dbTask.NotifyDiscord {
 		sendToDiscordWebhook(dbTask.WebHook, dbTask.URL)
 	} else {

@@ -25,14 +25,12 @@ func StartPingWorker() {
 		}).Result()
 		if err != nil {
 			log.Printf("Error fetching from queue: %v", err)
-			time.Sleep(1 * time.Second)
+			time.Sleep(1 * time.Minute)
 			continue
 		}
 		for _, task := range tasks {
 
 			parts := strings.SplitN(task, "|", 2)
-			fmt.Println(parts)
-			fmt.Println(len(parts))
 			if len(parts) != 2 {
 				log.Printf("Invalid task format: %s", task)
 				continue
@@ -47,14 +45,34 @@ func StartPingWorker() {
 			resp, err := http.Get(url)
 			timeSince := time.Since(timeNow).Milliseconds()
 			taskMember := fmt.Sprintf("%d|%s", taskId, url)
-
-			if err != nil || resp.StatusCode != http.StatusOK {
+			if err := TrimLogs(uint(taskId)); err != nil {
+				log.Printf("Error trimming logs for task %d: %v", taskId, err)
+			}
+			if err != nil {
 				newLog := models.Log{
 					LogResponse: "Failed to ping URL",
 					Time:        time.Now(),
 					TimeTake:    int64(timeSince),
 					TaskID:      uint(taskId),
 					IsSuccess:   false,
+				}
+				redisClient.ZRem(context.Background(), "ping_queue", taskMember)
+				if err := database.DB.Create(&newLog).Error; err != nil {
+					log.Printf("Error creating log: %v", err)
+				}
+				if err := database.DB.Model(&models.Task{}).Where("id = ?", taskId).Update("is_active", false).Error; err != nil {
+					log.Printf("Error updating task: %v", err)
+				}
+				continue
+			}
+			if resp.StatusCode != http.StatusOK {
+				newLog := models.Log{
+					LogResponse: "Failed to ping URL",
+					Time:        time.Now(),
+					TimeTake:    int64(timeSince),
+					TaskID:      uint(taskId),
+					IsSuccess:   false,
+					RespCode:    resp.StatusCode,
 				}
 				if err := database.DB.Create(&newLog).Error; err != nil {
 					log.Printf("Error creating log: %v", err)
@@ -70,7 +88,7 @@ func StartPingWorker() {
 						redisClient.LPush(context.Background(), "noti_queue", taskId)
 					} else {
 						database.DB.Model(&task).Update("fail_count", task.FailCount)
-						nextPing := time.Now().Add(10 * time.Second).Unix()
+						nextPing := time.Now().Add(10 * time.Minute).Unix()
 
 						_, err = redisClient.ZAdd(context.Background(), "ping_queue", &redis.Z{
 							Score:  float64(nextPing),
@@ -88,7 +106,7 @@ func StartPingWorker() {
 			}
 			if resp.StatusCode == http.StatusOK {
 				taskMember := fmt.Sprintf("%d|%s", taskId, url)
-				nextPing := time.Now().Add(10 * time.Second).Unix()
+				nextPing := time.Now().Add(10 * time.Minute).Unix()
 				_, err = redisClient.ZAdd(context.Background(), "ping_queue", &redis.Z{
 					Score:  float64(nextPing),
 					Member: taskMember,
@@ -96,13 +114,13 @@ func StartPingWorker() {
 				if err != nil {
 					log.Printf("Error rescheduling URL %s: %v", url, err)
 				}
-				fmt.Println(timeSince)
 				newLog := models.Log{
-					LogResponse: "Successfully pinged - 200",
+					LogResponse: "Successfully pinged",
 					Time:        time.Now(),
 					TimeTake:    int64(timeSince),
 					TaskID:      uint(taskId),
 					IsSuccess:   true,
+					RespCode:    resp.StatusCode,
 				}
 				if err := database.DB.Create(&newLog).Error; err != nil {
 					log.Printf("Error creating log: %v", err)
@@ -111,6 +129,20 @@ func StartPingWorker() {
 			resp.Body.Close()
 		}
 
-		time.Sleep(10 * time.Second)
+		time.Sleep(10 * time.Minute)
 	}
+}
+
+const MaxLogsPerTask = 10
+
+func TrimLogs(taskID uint) error {
+	var logCount int64
+	database.DB.Model(&models.Log{}).Where("task_id = ?", taskID).Count(&logCount)
+	if logCount >= MaxLogsPerTask {
+		database.DB.Where("task_id = ?", taskID).
+			Order("time ASC").
+			Limit(1).
+			Delete(&models.Log{})
+	}
+	return nil
 }
