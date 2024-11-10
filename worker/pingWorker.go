@@ -67,10 +67,11 @@ func StartPingWorker() {
 						task.IsActive = false
 						database.DB.Save(&task)
 						redisClient.ZRem(context.Background(), "ping_queue", taskMember)
-						log.Printf("Task %d has failed more than 2 times. Marked as inactive and removed from queue.", taskId)
+						redisClient.LPush(context.Background(), "noti_queue", taskId)
 					} else {
 						database.DB.Model(&task).Update("fail_count", task.FailCount)
 						nextPing := time.Now().Add(10 * time.Second).Unix()
+
 						_, err = redisClient.ZAdd(context.Background(), "ping_queue", &redis.Z{
 							Score:  float64(nextPing),
 							Member: taskMember,
@@ -78,6 +79,7 @@ func StartPingWorker() {
 						if err != nil {
 							log.Printf("Error rescheduling URL %s: %v", url, err)
 						}
+
 					}
 				} else {
 					log.Printf("Error fetching task: %v", err)

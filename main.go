@@ -28,6 +28,7 @@ func main() {
 	r := gin.Default()
 	routes.SetupRouter(r)
 	PORT := os.Getenv("PORT")
+	go worker.NotiWorker()
 	go worker.StartPingWorker()
 
 	r.Run(":" + PORT)
