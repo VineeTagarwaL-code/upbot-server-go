@@ -13,11 +13,12 @@ type User struct {
 }
 type Task struct {
 	gorm.Model
-	URL      string  `json:"url" binding:"required"`
-	IsActive bool    `json:"isActive"`
-	WebHook  *string `json:"webHook" gorm:"default:NULL"`
-	UserID   uint    `json:"userId"`
-	Logs     []Log   `json:"logs" gorm:"foreignKey:TaskID"`
+	URL           string  `json:"url" binding:"required"`
+	IsActive      bool    `json:"isActive"`
+	NotifyDiscord bool    `json:"notifyDiscord"`
+	WebHook       *string `json:"webHook" gorm:"default:NULL"`
+	UserID        uint    `json:"userId"`
+	Logs          []Log   `json:"logs" gorm:"foreignKey:TaskID"`
 }
 type Log struct {
 	gorm.Model
